@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Painel do psicólogo | Apoio Psicológico</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <strong>Apoio Psicológico | Psicólogo</strong>
+  <nav><a href="#solicitacoes">Solicitações</a><a href="#perfil">Meu perfil</a></nav>
+  <button class="sec" id="sair">Sair</button>
+</header>
+<main>
+  <section id="solicitacoes">
+    <h2>Solicitações de agendamento</h2>
+    <ul class="list" id="lista"><li><small>Nenhuma solicitação por enquanto.</small></li></ul>
+  </section>
+
+  <section id="perfil">
+    <h2>Perfil profissional</h2>
+    <form id="form-perfil">
+      <label for="nome">Nome</label>
+      <input id="nome" required>
+      <label for="crp">CRP</label>
+      <input id="crp" disabled>
+      <label for="especialidade">Especialidade</label>
+      <input id="especialidade">
+      <label for="bio">Apresentação</label>
+      <textarea id="bio" rows="4"></textarea>
+      <button type="submit">Salvar perfil</button>
+      <p class="msg ok" id="msg" role="status"></p>
+    </form>
+  </section>
+</main>
+<script src="app.js"></script>
+<script>
+exigir('psicologo');
+
+async function carregarPerfil() {
+  const p = await api('/api/psi/perfil');
+  nome.value = p.nome || ''; crp.value = p.crp || '';
+  especialidade.value = p.especialidade || ''; bio.value = p.bio || '';
+}
+
+async function carregarSolicitacoes() {
+  const itens = await api('/api/psi/agendamentos');
+  if (!itens.length) return;
+  document.getElementById('lista').innerHTML = itens.map(a => `
+    <li><span>${esc(a.usuario)}<br><small>${fmt(a.data_hora)}</small></span>
+    ${a.status === 'pendente'
+      ? `<span class="acoes"><button data-id="${a.id}" data-s="confirmado">Confirmar</button>
+         <button class="sec" data-id="${a.id}" data-s="recusado">Recusar</button></span>`
+      : `<span class="tag">${esc(a.status)}</span>`}</li>`).join('');
+}
+
+document.getElementById('lista').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-s]');
+  if (!b) return;
+  await api('/api/psi/agendamentos/' + b.dataset.id, {method: 'PATCH', body: j({status: b.dataset.s})});
+  carregarSolicitacoes();
+});
+
+document.getElementById('form-perfil').addEventListener('submit', async e => {
+  e.preventDefault();
+  await api('/api/psi/perfil', {method: 'PUT', body: j({nome: nome.value, especialidade: especialidade.value, bio: bio.value})});
+  document.getElementById('msg').textContent = 'Perfil atualizado.';
+});
+
+carregarPerfil();
+carregarSolicitacoes();
+</script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meu painel | Apoio Psicológico</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <strong>Apoio Psicológico</strong>
+  <nav><a href="#diario">Diário</a><a href="#historico">Histórico</a><a href="#psicologos">Psicólogos</a></nav>
+  <button class="sec" id="sair">Sair</button>
+</header>
+<main>
+  <section class="quote" id="motivacional">Carregando sua mensagem do dia…</section>
+
+  <section id="diario">
+    <h2>Como você está agora?</h2>
+    <form id="form-emocao">
+      <div class="chips" role="radiogroup" aria-label="Emoção">
+        <input type="radio" name="emocao" id="e1" value="Feliz" required><label for="e1">Feliz</label>
+        <input type="radio" name="emocao" id="e2" value="Calmo"><label for="e2">Calmo</label>
+        <input type="radio" name="emocao" id="e3" value="Ansioso"><label for="e3">Ansioso</label>
+        <input type="radio" name="emocao" id="e4" value="Triste"><label for="e4">Triste</label>
+        <input type="radio" name="emocao" id="e5" value="Irritado"><label for="e5">Irritado</label>
+      </div>
+      <label for="intensidade">Intensidade (1 a 5)</label>
+      <input id="intensidade" type="range" min="1" max="5" value="3">
+      <label for="descricao">O que aconteceu? (opcional)</label>
+      <textarea id="descricao" rows="3"></textarea>
+      <button type="submit">Salvar registro</button>
+      <p class="msg ok" id="msg-emocao" role="status"></p>
+    </form>
+  </section>
+
+  <section id="historico">
+    <h2>Seu histórico emocional</h2>
+    <ul class="list" id="lista-emocoes"><li><small>Nenhum registro ainda. Salve o primeiro acima.</small></li></ul>
+  </section>
+
+  <section id="psicologos">
+    <h2>Psicólogos disponíveis</h2>
+    <label for="busca">Buscar por nome ou especialidade</label>
+    <input id="busca" type="search">
+    <ul class="list" id="lista-psicologos"></ul>
+    <p class="msg ok" id="msg-agenda" role="status"></p>
+  </section>
+</main>
+<script>
+const token = localStorage.getItem('token');
+if (!token) location.href = 'login.html';
+const api = (url, opts = {}) => fetch(url, {
+  ...opts,
+  headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token}
+}).then(r => { if (r.status === 401) { localStorage.clear(); location.href = 'login.html'; } return r.json(); });
+
+document.getElementById('sair').onclick = () => { localStorage.clear(); location.href = 'login.html'; };
+
+async function carregarEmocoes() {
+  const itens = await api('/api/emocoes');
+  if (!itens.length) return;
+  document.getElementById('lista-emocoes').innerHTML = itens.map(i =>
+    `<li><span>${i.emocao} (${i.intensidade}/5)<br><small>${i.descricao || ''}</small></span>
+     <small>${new Date(i.registrado_em).toLocaleDateString('pt-BR')}</small></li>`).join('');
+}
+
+let psicologos = [];
+function mostrarPsicologos(filtro = '') {
+  const f = filtro.toLowerCase();
+  document.getElementById('lista-psicologos').innerHTML = psicologos
+    .filter(p => (p.nome + p.especialidade).toLowerCase().includes(f))
+    .map(p => `<li><span>${p.nome}<br><small>${p.especialidade}</small></span>
+      <button class="sec" data-id="${p.id}">Solicitar agendamento</button></li>`).join('');
+}
+
+document.getElementById('form-emocao').addEventListener('submit', async e => {
+  e.preventDefault();
+  await api('/api/emocoes', {method: 'POST', body: JSON.stringify({
+    emocao: e.target.emocao.value,
+    intensidade: +intensidade.value,
+    descricao: descricao.value
+  })});
+  document.getElementById('msg-emocao').textContent = 'Registro salvo.';
+  e.target.reset();
+  carregarEmocoes();
+});
+
+document.getElementById('busca').oninput = e => mostrarPsicologos(e.target.value);
+document.getElementById('lista-psicologos').addEventListener('click', async e => {
+  const id = e.target.dataset.id;
+  if (!id) return;
+  const data_hora = prompt('Data e hora desejadas (AAAA-MM-DD HH:MM):');
+  if (!data_hora) return;
+  await api('/api/agendamentos', {method: 'POST', body: JSON.stringify({psicologo_id: +id, data_hora})});
+  document.getElementById('msg-agenda').textContent = 'Solicitação enviada ao psicólogo.';
+});
+
+(async () => {
+  carregarEmocoes();
+  psicologos = await api('/api/psicologos');
+  mostrarPsicologos();
+  const m = await api('/api/mensagem-do-dia');
+  document.getElementById('motivacional').textContent = m.texto || 'Um passo de cada vez já é caminhar.';
+})();
+</script>
+</body>
+</html>

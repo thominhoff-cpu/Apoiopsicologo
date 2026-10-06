@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar | Apoio Psicológico</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="auth">
+  <form class="box" id="form">
+    <h1>Entrar</h1>
+    <p><small>Acesse seu espaço de cuidado.</small></p>
+    <label for="perfil">Entrar como</label>
+    <select id="perfil"><option value="usuario">Usuário</option><option value="psicologo">Psicólogo</option><option value="admin">Administrador</option></select>
+    <label for="email">E-mail</label>
+    <input id="email" type="email" required autocomplete="email">
+    <label for="senha">Senha</label>
+    <input id="senha" type="password" required autocomplete="current-password">
+    <button type="submit">Entrar</button>
+    <p class="msg" id="msg" role="alert"></p>
+    <p><a href="cadastro.html">Criar conta</a></p>
+  </form>
+</main>
+<script>
+document.getElementById('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  const r = await fetch('/api/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({perfil: perfil.value, email: email.value, senha: senha.value})
+  });
+  const d = await r.json();
+  if (!r.ok) { msg.textContent = d.erro || 'E-mail ou senha incorretos.'; return; }
+  localStorage.setItem('token', d.token);
+  localStorage.setItem('perfil', perfil.value);
+  location.href = {usuario: 'painel.html', psicologo: 'psicologo.html', admin: 'admin.html'}[perfil.value];
+});
+</script>
+</body>
+</html>

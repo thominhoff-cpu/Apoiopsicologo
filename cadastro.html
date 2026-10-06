@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Criar conta | Apoio Psicológico</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="auth">
+  <form class="box" id="form">
+    <h1>Criar conta</h1>
+    <label for="nome">Nome</label>
+    <input id="nome" required autocomplete="name">
+    <label for="email">E-mail</label>
+    <input id="email" type="email" required autocomplete="email">
+    <label for="senha">Senha (mínimo 8 caracteres)</label>
+    <input id="senha" type="password" minlength="8" required autocomplete="new-password">
+    <button type="submit">Criar conta</button>
+    <p class="msg" id="msg" role="alert"></p>
+    <p><a href="login.html">Já tenho conta</a></p>
+  </form>
+</main>
+<script>
+document.getElementById('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  const r = await fetch('/api/usuarios', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({nome: nome.value, email: email.value, senha: senha.value})
+  });
+  const d = await r.json();
+  if (!r.ok) { msg.textContent = d.erro || 'Não foi possível criar a conta.'; return; }
+  location.href = 'login.html';
+});
+</script>
+</body>
+</html>

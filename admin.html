@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Administração | Apoio Psicológico</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <strong>Apoio Psicológico | Administração</strong>
+  <nav><a href="#usuarios">Usuários</a><a href="#psicologos">Psicólogos</a><a href="#agendamentos">Agendamentos</a><a href="#mensagens">Mensagens</a></nav>
+  <button class="sec" id="sair">Sair</button>
+</header>
+<main>
+  <section id="usuarios">
+    <h2>Usuários</h2>
+    <ul class="list" id="l-usuarios"></ul>
+  </section>
+
+  <section id="psicologos">
+    <h2>Psicólogos</h2>
+    <form id="f-psicologos" class="grid2">
+      <div><label for="p-nome">Nome</label><input id="p-nome" name="nome" required></div>
+      <div><label for="p-email">E-mail</label><input id="p-email" name="email" type="email" required></div>
+      <div><label for="p-senha">Senha inicial</label><input id="p-senha" name="senha" type="password" minlength="8" required></div>
+      <div><label for="p-crp">CRP</label><input id="p-crp" name="crp" required></div>
+      <div><label for="p-esp">Especialidade</label><input id="p-esp" name="especialidade"></div>
+      <div><button type="submit">Cadastrar psicólogo</button></div>
+    </form>
+    <ul class="list" id="l-psicologos"></ul>
+  </section>
+
+  <section id="agendamentos">
+    <h2>Agendamentos</h2>
+    <ul class="list" id="l-agendamentos"></ul>
+  </section>
+
+  <section id="mensagens">
+    <h2>Mensagens motivacionais</h2>
+    <form id="f-mensagens">
+      <label for="m-texto">Nova mensagem</label>
+      <textarea id="m-texto" name="texto" rows="2" required></textarea>
+      <button type="submit">Cadastrar mensagem</button>
+    </form>
+    <ul class="list" id="l-mensagens"></ul>
+  </section>
+</main>
+<script src="app.js"></script>
+<script>
+exigir('admin');
+const dados = {};
+const tipos = {
+  usuarios: {campos: ['nome', 'email'], linha: u => `${esc(u.nome)}<br><small>${esc(u.email)}</small>`},
+  psicologos: {campos: ['nome', 'email', 'crp', 'especialidade'], linha: p => `${esc(p.nome)}<br><small>CRP ${esc(p.crp)}, ${esc(p.especialidade)}</small>`},
+  mensagens: {campos: ['texto'], linha: m => `${esc(m.texto)}<br><small>${m.ativa ? 'Ativa' : 'Inativa'}</small>`}
+};
+const botoes = (t, id) => `<span class="acoes"><button class="sec" data-t="${t}" data-id="${id}" data-a="editar">Editar</button>
+  <button class="sec" data-t="${t}" data-id="${id}" data-a="excluir">Excluir</button></span>`;
+
+async function listar(t) {
+  dados[t] = await api('/api/admin/' + t);
+  document.getElementById('l-' + t).innerHTML = dados[t].length
+    ? dados[t].map(i => `<li><span>${tipos[t].linha(i)}</span>${botoes(t, i.id)}</li>`).join('')
+    : '<li><small>Nada cadastrado ainda.</small></li>';
+}
+
+async function listarAgendamentos() {
+  const itens = await api('/api/admin/agendamentos');
+  document.getElementById('l-agendamentos').innerHTML = itens.length ? itens.map(a => `
+    <li><span>${esc(a.usuario)} com ${esc(a.psicologo)}<br><small>${fmt(a.data_hora)}</small></span>
+    <span class="acoes">
+      <select data-id="${a.id}" aria-label="Status">
+        ${['pendente', 'confirmado', 'recusado'].map(s => `<option ${s === a.status ? 'selected' : ''}>${s}</option>`).join('')}
+      </select>
+      <button class="sec" data-t="agendamentos" data-id="${a.id}" data-a="excluir">Excluir</button>
+    </span></li>`).join('') : '<li><small>Nenhum agendamento.</small></li>';
+}
+
+document.querySelector('main').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-a]');
+  if (!b) return;
+  const {t, id, a} = b.dataset;
+  if (a === 'excluir') {
+    if (!confirm('Excluir este item? Esta ação não pode ser desfeita.')) return;
+    await api(`/api/admin/${t}/${id}`, {method: 'DELETE'});
+  } else {
+    const item = {...dados[t].find(i => i.id == id)};
+    for (const c of tipos[t].campos) {
+      const v = prompt('Editar ' + c + ':', item[c] ?? '');
+      if (v === null) return;
+      item[c] = v;
+    }
+    await api(`/api/admin/${t}/${id}`, {method: 'PUT', body: j(item)});
+  }
+  t === 'agendamentos' ? listarAgendamentos() : listar(t);
+});
+
+document.getElementById('l-agendamentos').addEventListener('change', async e => {
+  await api('/api/admin/agendamentos/' + e.target.dataset.id, {method: 'PATCH', body: j({status: e.target.value})});
+});
+
+['psicologos', 'mensagens'].forEach(t => {
+  document.getElementById('f-' + t).addEventListener('submit', async e => {
+    e.preventDefault();
+    const r = await api('/api/admin/' + t, {method: 'POST', body: j(Object.fromEntries(new FormData(e.target)))});
+    if (r.ok) { e.target.reset(); listar(t); }
+  });
+});
+
+['usuarios', 'psicologos', 'mensagens'].forEach(listar);
+listarAgendamentos();
+</script>
+</body>
+</html>
